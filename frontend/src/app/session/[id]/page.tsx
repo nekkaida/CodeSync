@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { sessionsAPI } from '@/lib/api';
-import MonacoEditor from '@/components/editor/MonacoEditor';
+import MonacoEditor, { type MonacoEditorRef } from '@/components/editor/MonacoEditor';
 import ChatPanel from '@/components/chat/ChatPanel';
 import FileExplorer from '@/components/editor/FileExplorer';
 import InviteModal from '@/components/session/InviteModal';
@@ -26,6 +26,7 @@ interface Session {
 export default function SessionPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { user } = useAuthStore();
+  const editorRef = useRef<MonacoEditorRef>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -249,6 +250,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         {/* Editor */}
         <div className="flex-1 overflow-hidden relative">
           <MonacoEditor
+            ref={editorRef}
             sessionId={params.id}
             language={session.language.toLowerCase()}
             currentFile={selectedFile}
@@ -262,7 +264,10 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             onResultClick={(filePath, line, column) => {
               setSelectedFile(filePath);
               setIsSearchPanelOpen(false);
-              // TODO: Navigate to line/column in Monaco
+              // Navigate to line/column in Monaco after file switch
+              setTimeout(() => {
+                editorRef.current?.revealLine(line, column);
+              }, 100);
             }}
           />
         </div>

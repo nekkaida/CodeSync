@@ -1,0 +1,431 @@
+// CodeSync Production Database Schema V2
+// Complete production-ready schema with all improvements
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER MANAGEMENT
+// ============================================================================
+
+model User {
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String?
+  name     String
+  role     UserRole @default(USER)
+
+  // AI Cost Management
+  ai_cost_limit Float @default(10.00) // Monthly limit in USD
+
+  // Soft Delete
+  deleted_at DateTime?
+  deleted_by String?
+
+  // Timestamps
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  sessions       Session[]      @relation("SessionOwner")
+  participants   Participant[]
+  messages       Message[]
+  code_snapshots CodeSnapshot[]
+  ai_usage       AIUsage[]
+  audit_logs     AuditLog[]
+  token_blacklist TokenBlacklist[]
+
+  @@index([email])
+  @@index([deleted_at])
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+// ============================================================================
+// SESSIONS
+// ============================================================================
+
+model Session {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  language    ProgrammingLanguage
+  visibility  SessionVisibility @default(PRIVATE)
+  status      SessionStatus     @default(ACTIVE)
+
+  // Owner
+  owner_id String
+  owner    User   @relation("SessionOwner", fields: [owner_id], references: [id], onDelete: Cascade)
+
+  // Soft Delete
+  deleted_at DateTime?
+  deleted_by String?
+
+  // Activity Tracking
+  last_activity DateTime @default(now())
+  participants_count Int @default(0)
+
+  // Timestamps
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  participants   Participant[]
+  messages       Message[]
+  code_snapshots CodeSnapshot[]
+  files          SessionFile[]
+  invitations    SessionInvitation[]
+
+  @@index([owner_id])
+  @@index([status])
+  @@index([visibility])
+  @@index([deleted_at])
+  @@index([last_activity])
+  @@index([created_at])
+  @@map("sessions")
+}
+
+enum ProgrammingLanguage {
+  javascript
+  typescript
+  python
+  java
+  go
+  rust
+  cpp
+  csharp
+  php
+  ruby
+}
+
+enum SessionVisibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+enum SessionStatus {
+  ACTIVE
+  ARCHIVED
+  PAUSED
+}
+
+// ============================================================================
+// PARTICIPANTS
+// ============================================================================
+
+model Participant {
+  id       String          @id @default(cuid())
+  role     ParticipantRole @default(VIEWER)
+
+  // Relations
+  session_id String
+  session    Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Cursor position tracking
+  cursor_line   Int?
+  cursor_column Int?
+  cursor_color  String?
+
+  // Timestamps
+  joined_at DateTime @default(now())
+  last_seen DateTime @default(now())
+  left_at   DateTime?
+
+  @@unique([session_id, user_id])
+  @@index([session_id])
+  @@index([user_id])
+  @@index([last_seen])
+  @@map("participants")
+}
+
+enum ParticipantRole {
+  OWNER
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+// ============================================================================
+// MESSAGES & CHAT
+// ============================================================================
+
+model Message {
+  id      String      @id @default(cuid())
+  content String      @db.Text
+  type    MessageType @default(TEXT)
+
+  // Parent message for threading
+  parent_id String?
+  parent    Message?  @relation("MessageThread", fields: [parent_id], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageThread")
+  reply_to  String?   // For tracking reply references
+
+  // Relations
+  session_id String
+  session    Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Soft Delete
+  deleted_at DateTime?
+
+  // Reactions
+  reactions MessageReaction[]
+
+  // Timestamps
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([session_id])
+  @@index([user_id])
+  @@index([parent_id])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@map("messages")
+}
+
+enum MessageType {
+  TEXT
+  CODE
+  SYSTEM
+  FILE
+}
+
+model MessageReaction {
+  id String @id @default(cuid())
+
+  message_id String
+  message    Message @relation(fields: [message_id], references: [id], onDelete: Cascade)
+
+  user_id String
+  emoji   String // 👍, ❤️, etc.
+
+  created_at DateTime @default(now())
+
+  @@unique([message_id, user_id, emoji])
+  @@index([message_id])
+  @@map("message_reactions")
+}
+
+// ============================================================================
+// CODE SNAPSHOTS & HISTORY
+// ============================================================================
+
+model CodeSnapshot {
+  id String @id @default(cuid())
+
+  // Yjs state
+  yjs_state String @db.Text
+
+  // Metadata
+  change_summary  String?
+  lines_added     Int     @default(0)
+  lines_removed   Int     @default(0)
+
+  // Relations
+  session_id String
+  session    Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+
+  @@index([session_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@map("code_snapshots")
+}
+
+// ============================================================================
+// FILES
+// ============================================================================
+
+model SessionFile {
+  id String @id @default(cuid())
+
+  original_name String
+  stored_name   String
+  mime_type     String
+  size          Int
+  storage_key   String // S3/MinIO key
+  storage_url   String
+
+  // For Yjs document persistence
+  path      String?
+  content   String? @db.Text
+  yjs_state String? @db.Text
+
+  // Relations
+  session_id String
+  session    Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  uploaded_by String
+
+  // Soft Delete
+  deleted_at DateTime?
+
+  created_at DateTime @default(now())
+
+  @@unique([session_id, path])
+  @@index([session_id])
+  @@index([uploaded_by])
+  @@index([deleted_at])
+  @@map("session_files")
+}
+
+// ============================================================================
+// INVITATIONS
+// ============================================================================
+
+model SessionInvitation {
+  id String @id @default(cuid())
+
+  session_id String
+  session    Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  email      String
+  role       ParticipantRole @default(VIEWER)
+  token      String          @unique
+
+  accepted_at DateTime?
+  expires_at  DateTime
+  created_at  DateTime @default(now())
+
+  @@index([session_id])
+  @@index([email])
+  @@index([token])
+  @@index([expires_at])
+  @@map("session_invitations")
+}
+
+// ============================================================================
+// AUTHENTICATION & SECURITY
+// ============================================================================
+
+model TokenBlacklist {
+  id     String @id @default(cuid())
+  token  String @unique
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@index([expires_at])
+  @@index([user_id])
+  @@map("token_blacklist")
+}
+
+model RateLimit {
+  id String @id @default(cuid())
+
+  user_id    String
+  identifier String // user_id or IP address
+  limit_type RateLimitType
+  count      Int
+  request_count Int @default(0)
+
+  window_start DateTime
+  window_end   DateTime
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([user_id, limit_type, window_end])
+  @@index([user_id])
+  @@index([identifier])
+  @@index([window_end])
+  @@map("rate_limits")
+}
+
+enum RateLimitType {
+  AI
+  API
+  WS
+}
+
+// ============================================================================
+// AI USAGE TRACKING
+// ============================================================================
+
+model AIUsage {
+  id String @id @default(cuid())
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  model           String
+  tokens_used     Int
+  cost_usd        Float
+  request_type    String // 'completion', 'chat', 'embedding'
+  prompt_length   Int
+  response_length Int
+
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([created_at])
+  @@index([user_id, created_at])
+  @@map("ai_usage")
+}
+
+// ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  action        AuditAction
+  resource_type String
+  resource_id   String
+  details       String? @db.Text
+
+  old_values Json?
+  new_values Json?
+
+  ip_address String?
+  user_agent String?
+
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([action])
+  @@index([resource_type])
+  @@index([resource_id])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  INVITE
+  JOIN
+  LEAVE
+  EXPORT
+}

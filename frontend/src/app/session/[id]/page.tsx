@@ -11,6 +11,7 @@ import InviteModal from '@/components/session/InviteModal';
 import CommandPalette from '@/components/editor/CommandPalette';
 import SearchPanel from '@/components/editor/SearchPanel';
 import { useKeyboardShortcuts, formatShortcut, type KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
+import toast from 'react-hot-toast';
 
 interface Session {
   id: string;
@@ -69,7 +70,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       description: 'Save current file',
       action: () => {
         // File is auto-saved, just show feedback
-        console.log('File saved');
+        toast.success('File saved automatically');
       },
     },
     {

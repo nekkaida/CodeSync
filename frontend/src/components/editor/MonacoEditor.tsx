@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
@@ -15,7 +15,11 @@ interface MonacoEditorProps {
   currentFile: string;
 }
 
-export default function MonacoEditor({ sessionId, language, currentFile }: MonacoEditorProps) {
+export interface MonacoEditorRef {
+  revealLine: (line: number, column?: number) => void;
+}
+
+const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({ sessionId, language, currentFile }, ref) => {
   const { user } = useAuthStore();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,6 +150,17 @@ export default function MonacoEditor({ sessionId, language, currentFile }: Monac
     });
   }, [currentFile, language, user, userColor]);
 
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    revealLine: (line: number, column: number = 1) => {
+      if (editorRef.current) {
+        editorRef.current.revealLineInCenter(line);
+        editorRef.current.setPosition({ lineNumber: line, column });
+        editorRef.current.focus();
+      }
+    },
+  }));
+
   const loadFileContent = async (filePath: string, ytext: Y.Text) => {
     try {
       const response = await fetch(
@@ -254,4 +269,8 @@ export default function MonacoEditor({ sessionId, language, currentFile }: Monac
       />
     </div>
   );
-}
+});
+
+MonacoEditor.displayName = 'MonacoEditor';
+
+export default MonacoEditor;

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma:*)",
+      "Bash(set DATABASE_URL=postgresql://codesync_user:IaJlwLZMsg91OqwFl7WH3OzkYva09jLt@localhost:5432/codesync?schema=public)",
+      "Bash(docker exec:*)",
+      "Bash(psql:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(timeout:*)",
+      "Bash(node:*)",
+      "Bash(docker inspect:*)",
+      "Bash(ipconfig)",
+      "Bash(docker logs:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run format:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker ps:*)",
+      "Bash(npm run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

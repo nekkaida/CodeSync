@@ -74,8 +74,8 @@ CodeSync is a real-time collaborative code editor built with modern web technolo
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/codesync.git
-cd codesync
+git clone https://github.com/nekkaida/CodeSync.git
+cd CodeSync
 ```
 
 2. **Generate secrets**
@@ -353,12 +353,18 @@ Contributions are welcome! Please follow these guidelines:
 - [x] Real-time chat (Socket.io)
 - [x] API documentation
 
-### Phase 2: Frontend (In Progress)
-- [ ] Next.js application setup
-- [ ] Monaco editor integration
-- [ ] Yjs + Monaco binding
-- [ ] Chat UI
-- [ ] User dashboard
+### Phase 2: Frontend ✅ (90% Complete)
+- [x] Next.js application setup
+- [x] Monaco editor integration
+- [x] Yjs + Monaco binding
+- [x] Chat UI with reactions and threading
+- [x] User dashboard
+- [x] File explorer with create/delete
+- [x] Command palette (Ctrl+K)
+- [x] Keyboard shortcuts
+- [x] Global search with regex
+- [x] Real-time notifications
+- [x] Session invitations
 - [ ] Admin panel
 
 ### Phase 3: AI Integration
@@ -368,13 +374,13 @@ Contributions are welcome! Please follow these guidelines:
 - [ ] Refactoring suggestions
 - [ ] Cost tracking
 
-### Phase 4: Advanced Features
-- [ ] Session invitations
-- [ ] File upload
-- [ ] Code snapshots
+### Phase 4: Advanced Features (40% Complete)
+- [x] Session invitations
+- [x] Global search across files
+- [x] Real-time notifications
+- [ ] File upload to MinIO
+- [ ] Code snapshots with restore
 - [ ] Export functionality
-- [ ] Search
-- [ ] Notifications
 
 ### Phase 5: DevOps
 - [ ] Docker production images
@@ -400,9 +406,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Documentation:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
-- **Issues:** [GitHub Issues](https://github.com/yourusername/codesync/issues)
-- **Email:** support@codesync.com
+- **Issues:** [GitHub Issues](https://github.com/nekkaida/CodeSync/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/nekkaida/CodeSync/discussions)
 
 ## Acknowledgments
 
@@ -417,6 +422,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ by the CodeSync Team**
 
-**Version:** 1.0.0
-**Status:** Phase 1 Complete - Backend API Ready
-**Last Updated:** 2025-10-27
+**Version:** 1.0.0-beta
+**Status:** Phase 1-2 Complete - Full-Stack MVP Ready (85% Complete)
+**Last Updated:** 2025-11-06

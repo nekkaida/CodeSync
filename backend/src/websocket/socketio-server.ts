@@ -30,6 +30,15 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
     const pubClient = createClient({ url: REDIS_URL });
     const subClient = pubClient.duplicate();
 
+    // Add error handlers to prevent crashes
+    pubClient.on('error', (err) => {
+      log.error('Redis Pub Client Error', { error: err.message });
+    });
+
+    subClient.on('error', (err) => {
+      log.error('Redis Sub Client Error', { error: err.message });
+    });
+
     await Promise.all([pubClient.connect(), subClient.connect()]);
 
     io.adapter(createAdapter(pubClient, subClient));

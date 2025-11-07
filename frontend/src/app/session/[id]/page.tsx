@@ -12,6 +12,7 @@ import CommandPalette from '@/components/editor/CommandPalette';
 import SearchPanel from '@/components/editor/SearchPanel';
 import SnapshotPanel from '@/components/editor/SnapshotPanel';
 import { useKeyboardShortcuts, formatShortcut, type KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
+import { SessionPageSkeleton } from '@/components/common/LoadingSkeleton';
 import toast from 'react-hot-toast';
 
 interface Session {
@@ -174,14 +175,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   ];
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading session...</p>
-        </div>
-      </div>
-    );
+    return <SessionPageSkeleton />;
   }
 
   if (error || !session) {

@@ -10,6 +10,7 @@ import FileExplorer from '@/components/editor/FileExplorer';
 import InviteModal from '@/components/session/InviteModal';
 import CommandPalette from '@/components/editor/CommandPalette';
 import SearchPanel from '@/components/editor/SearchPanel';
+import SnapshotPanel from '@/components/editor/SnapshotPanel';
 import { useKeyboardShortcuts, formatShortcut, type KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import toast from 'react-hot-toast';
 
@@ -35,6 +36,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false);
+  const [isSnapshotPanelOpen, setIsSnapshotPanelOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -88,12 +90,20 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       action: () => setIsSearchPanelOpen(true),
     },
     {
+      key: 'h',
+      ctrl: true,
+      shift: true,
+      description: 'Open snapshot history',
+      action: () => setIsSnapshotPanelOpen(true),
+    },
+    {
       key: 'Escape',
       description: 'Close modals',
       action: () => {
         setIsCommandPaletteOpen(false);
         setIsInviteModalOpen(false);
         setIsSearchPanelOpen(false);
+        setIsSnapshotPanelOpen(false);
       },
     },
   ];
@@ -153,6 +163,14 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       category: 'search' as const,
       action: () => setIsSearchPanelOpen(true),
     },
+    {
+      id: 'open-snapshots',
+      label: 'View Snapshot History',
+      description: 'Create and restore code snapshots',
+      shortcut: formatShortcut(shortcuts[4]),
+      category: 'session' as const,
+      action: () => setIsSnapshotPanelOpen(true),
+    },
   ];
 
   if (loading) {
@@ -207,6 +225,16 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSnapshotPanelOpen(true)}
+              className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors text-sm flex items-center gap-2"
+              title="Snapshots (Ctrl+Shift+H)"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="hidden sm:inline">History</span>
+            </button>
             <button
               onClick={() => setIsCommandPaletteOpen(true)}
               className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors text-sm flex items-center gap-2"
@@ -269,6 +297,16 @@ export default function SessionPage({ params }: { params: { id: string } }) {
               setTimeout(() => {
                 editorRef.current?.revealLine(line, column);
               }, 100);
+            }}
+          />
+
+          {/* Snapshot Panel Overlay */}
+          <SnapshotPanel
+            isOpen={isSnapshotPanelOpen}
+            onClose={() => setIsSnapshotPanelOpen(false)}
+            sessionId={params.id}
+            onSnapshotRestore={() => {
+              toast.success('Refresh the page to see the restored snapshot');
             }}
           />
         </div>

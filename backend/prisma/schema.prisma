@@ -260,15 +260,20 @@ model CodeSnapshot {
 model SessionFile {
   id String @id @default(cuid())
 
-  original_name String
-  stored_name   String
-  mime_type     String
-  size          Int
-  storage_key   String // S3/MinIO key
-  storage_url   String
+  // File metadata (used by current service layer)
+  name String @db.VarChar(255)
+  type String @db.VarChar(50) // 'file' or 'folder'
+
+  // MinIO/S3 storage fields (for future file upload feature)
+  original_name String?
+  stored_name   String?
+  mime_type     String?
+  size          Int?
+  storage_key   String? // S3/MinIO key
+  storage_url   String?
 
   // For Yjs document persistence
-  path      String?
+  path      String
   content   String? @db.Text
   yjs_state String? @db.Text
 
@@ -276,15 +281,17 @@ model SessionFile {
   session_id String
   session    Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
 
-  uploaded_by String
+  uploaded_by String?
 
   // Soft Delete
   deleted_at DateTime?
 
   created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@unique([session_id, path])
   @@index([session_id])
+  @@index([session_id, deleted_at])
   @@index([uploaded_by])
   @@index([deleted_at])
   @@map("session_files")

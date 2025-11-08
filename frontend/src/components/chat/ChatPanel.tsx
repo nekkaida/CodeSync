@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/lib/auth-store';
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_EVENTS } from '../../../../shared/contracts/socket-events';
 
 interface Message {
   id: string;
@@ -44,30 +45,34 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
     socketInstance.on('connect', () => {
       setIsConnected(true);
       // Join session room
-      socketInstance.emit('join-session', {
-        sessionId,
-        userId: user.id,
-        userName: user.name,
-      });
+      socketInstance.emit(SOCKET_EVENTS.SESSION_JOIN, sessionId);
     });
 
-    socketInstance.on('disconnect', () => {
+    socketInstance.on(SOCKET_EVENTS.DISCONNECT, () => {
       setIsConnected(false);
     });
 
     // Handle incoming messages
-    socketInstance.on('chat-message', (message: Message) => {
-      setMessages((prev) => [...prev, message]);
+    socketInstance.on(SOCKET_EVENTS.CHAT_MESSAGE_NEW, (message: any) => {
+      setMessages((prev) => [...prev, {
+        id: message.id,
+        userId: message.user_id,
+        userName: message.user.name,
+        content: message.content,
+        timestamp: new Date(message.created_at),
+      }]);
     });
 
-    // Handle participants update
-    socketInstance.on('participants-update', (updatedParticipants: Participant[]) => {
-      setParticipants(updatedParticipants);
+    // Handle user joined
+    socketInstance.on(SOCKET_EVENTS.USER_JOINED, (data: any) => {
+      // Add to participants or show notification
+      console.log('User joined:', data);
     });
 
-    // Handle message history
-    socketInstance.on('message-history', (history: Message[]) => {
-      setMessages(history);
+    // Handle user left
+    socketInstance.on(SOCKET_EVENTS.USER_LEFT, (data: any) => {
+      // Remove from participants or show notification
+      console.log('User left:', data);
     });
 
     setSocket(socketInstance);
@@ -86,9 +91,10 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
     e.preventDefault();
     if (!socket || !newMessage.trim()) return;
 
-    socket.emit('chat-message', {
+    socket.emit(SOCKET_EVENTS.CHAT_MESSAGE_SEND, {
       sessionId,
       content: newMessage.trim(),
+      type: 'TEXT',
     });
 
     setNewMessage('');

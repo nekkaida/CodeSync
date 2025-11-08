@@ -12,6 +12,17 @@ import { registerSchema, loginSchema, changePasswordSchema } from '../validators
 
 const router = Router();
 
+// Get CSRF token
+router.get('/csrf', (req: Request, res: Response) => {
+  // Token is already set by setCsrfToken middleware
+  res.json({
+    success: true,
+    data: {
+      token: req.cookies?.['csrf-token'],
+    },
+  });
+});
+
 // Register new user
 router.post(
   '/register',

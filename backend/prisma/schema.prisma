@@ -93,6 +93,8 @@ model Session {
   @@index([deleted_at])
   @@index([last_activity])
   @@index([created_at])
+  @@index([owner_id, status, deleted_at])
+  @@index([visibility, status, deleted_at])
   @@map("sessions")
 }
 
@@ -150,6 +152,8 @@ model Participant {
   @@index([session_id])
   @@index([user_id])
   @@index([last_seen])
+  @@index([session_id, left_at])
+  @@index([user_id, left_at])
   @@map("participants")
 }
 
@@ -197,6 +201,8 @@ model Message {
   @@index([parent_id])
   @@index([created_at])
   @@index([deleted_at])
+  @@index([session_id, parent_id, deleted_at])
+  @@index([user_id, created_at])
   @@map("messages")
 }
 
@@ -360,6 +366,8 @@ model RateLimit {
   @@index([user_id])
   @@index([identifier])
   @@index([window_end])
+  @@index([user_id, limit_type, window_start])
+  @@index([window_start])
   @@map("rate_limits")
 }
 

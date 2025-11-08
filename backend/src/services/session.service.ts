@@ -472,15 +472,26 @@ export class SessionService {
   async getSessionFiles(sessionId: string, userId: string) {
     await this.getSession(sessionId, userId); // Check access
 
-    // Return default file structure for now
-    return [
-      {
-        id: '1',
-        name: 'main.js',
-        type: 'file',
-        path: 'main.js',
+    // Get files from database
+    const files = await prisma.sessionFile.findMany({
+      where: {
+        session_id: sessionId,
+        deleted_at: null,
       },
-    ];
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        path: true,
+        created_at: true,
+        updated_at: true,
+      },
+      orderBy: {
+        path: 'asc',
+      },
+    });
+
+    return files;
   }
 
   // Create file in session
@@ -506,12 +517,24 @@ export class SessionService {
       throw new AuthorizationError('Not authorized to create files');
     }
 
-    const file = {
-      id: Date.now().toString(),
-      name,
-      type,
-      path: name,
-    };
+    // Create file in database
+    const file = await prisma.sessionFile.create({
+      data: {
+        session_id: sessionId,
+        name,
+        type,
+        path: name,
+        content: type === 'file' ? '' : null,
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        path: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
 
     log.info('File created', { sessionId, userId, fileName: name, type });
 
@@ -540,6 +563,14 @@ export class SessionService {
     if (!participant && session.owner_id !== userId) {
       throw new AuthorizationError('Not authorized to delete files');
     }
+
+    // Soft delete file
+    await prisma.sessionFile.update({
+      where: { id: fileId },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
 
     log.info('File deleted', { sessionId, userId, fileId });
   }

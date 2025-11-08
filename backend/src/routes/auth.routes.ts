@@ -7,6 +7,7 @@ import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
 import { setTokenCookie, clearTokenCookie } from '../middleware/auth';
 import { verifyCsrf } from '../middleware/csrf';
+import { sanitizeEmail } from '../utils/sanitize';
 import { registerSchema, loginSchema, changePasswordSchema } from '../validators/auth.validator';
 
 const router = Router();
@@ -17,7 +18,13 @@ router.post(
   validate(registerSchema),
   verifyCsrf,
   asyncHandler(async (req: Request, res: Response) => {
-    const { user, token } = await authService.register(req.body);
+    // Sanitize email before processing
+    const sanitizedData = {
+      ...req.body,
+      email: sanitizeEmail(req.body.email),
+    };
+
+    const { user, token } = await authService.register(sanitizedData);
 
     // Set token as httpOnly cookie
     setTokenCookie(res, token);
@@ -35,7 +42,13 @@ router.post(
   validate(loginSchema),
   verifyCsrf,
   asyncHandler(async (req: Request, res: Response) => {
-    const { user, token } = await authService.login(req.body);
+    // Sanitize email before processing
+    const sanitizedData = {
+      ...req.body,
+      email: sanitizeEmail(req.body.email),
+    };
+
+    const { user, token } = await authService.login(sanitizedData);
 
     // Set token as httpOnly cookie
     setTokenCookie(res, token);

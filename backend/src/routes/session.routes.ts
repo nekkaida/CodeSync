@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { validate } from '../middleware/validate';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { verifyCsrf } from '../middleware/csrf';
+import { rateLimit } from '../middleware/rateLimit';
 import { sanitizeFilePath, sanitizeSearchQuery, sanitizeRegex } from '../utils/sanitize';
 import {
   createSessionSchema,
@@ -200,6 +201,7 @@ router.put(
 router.get(
   '/:sessionId/files',
   authenticate,
+  rateLimit({ type: 'API', maxRequests: 60, windowMs: 60 * 1000 }),
   asyncHandler(async (req: Request, res: Response) => {
     const files = await sessionService.getSessionFiles(req.params.sessionId, req.user!.id);
 
@@ -253,6 +255,7 @@ router.delete(
 router.get(
   '/:sessionId/files/:filePath*/content',
   authenticate,
+  rateLimit({ type: 'API', maxRequests: 60, windowMs: 60 * 1000 }),
   asyncHandler(async (req: Request, res: Response) => {
     const filePath = req.params.filePath + (req.params[0] || '');
     const sanitizedPath = sanitizeFilePath(decodeURIComponent(filePath));
@@ -274,6 +277,7 @@ router.put(
   '/:sessionId/files/:filePath*/content',
   authenticate,
   verifyCsrf,
+  rateLimit({ type: 'API', maxRequests: 60, windowMs: 60 * 1000 }),
   asyncHandler(async (req: Request, res: Response) => {
     const filePath = req.params.filePath + (req.params[0] || '');
     const sanitizedPath = sanitizeFilePath(decodeURIComponent(filePath));
@@ -295,6 +299,7 @@ router.put(
 router.post(
   '/:sessionId/search',
   authenticate,
+  rateLimit({ type: 'API', maxRequests: 30, windowMs: 60 * 1000 }),
   asyncHandler(async (req: Request, res: Response) => {
     const { query, regex, caseSensitive, wholeWord } = req.body;
 

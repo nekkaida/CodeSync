@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { validate } from '../middleware/validate';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { verifyCsrf } from '../middleware/csrf';
+import { sanitizeFilePath, sanitizeSearchQuery, sanitizeRegex } from '../utils/sanitize';
 import {
   createSessionSchema,
   updateSessionSchema,
@@ -254,10 +255,11 @@ router.get(
   authenticate,
   asyncHandler(async (req: Request, res: Response) => {
     const filePath = req.params.filePath + (req.params[0] || '');
+    const sanitizedPath = sanitizeFilePath(decodeURIComponent(filePath));
     const content = await sessionService.getFileContent(
       req.params.sessionId,
       req.user!.id,
-      decodeURIComponent(filePath),
+      sanitizedPath,
     );
 
     res.json({
@@ -274,10 +276,11 @@ router.put(
   verifyCsrf,
   asyncHandler(async (req: Request, res: Response) => {
     const filePath = req.params.filePath + (req.params[0] || '');
+    const sanitizedPath = sanitizeFilePath(decodeURIComponent(filePath));
     await sessionService.updateFileContent(
       req.params.sessionId,
       req.user!.id,
-      decodeURIComponent(filePath),
+      sanitizedPath,
       req.body.content,
     );
 
@@ -295,10 +298,20 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { query, regex, caseSensitive, wholeWord } = req.body;
 
+    // Sanitize search query
+    const sanitizedQuery = sanitizeSearchQuery(query);
+
+    // If using regex mode, validate the regex pattern
+    let searchPattern = sanitizedQuery;
+    if (regex) {
+      const regexObj = sanitizeRegex(sanitizedQuery, caseSensitive ? '' : 'i');
+      searchPattern = regexObj.source;
+    }
+
     const results = await sessionService.searchFiles(
       req.params.sessionId,
       req.user!.id,
-      query,
+      searchPattern,
       { regex, caseSensitive, wholeWord }
     );
 

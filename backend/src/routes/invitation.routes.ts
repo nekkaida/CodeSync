@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { validate } from '../middleware/validate';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { verifyCsrf } from '../middleware/csrf';
+import { sanitizeEmail } from '../utils/sanitize';
 import {
   createInvitationSchema,
   acceptInvitationSchema,
@@ -23,7 +24,7 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const invitation = await invitationService.createInvitation({
       sessionId: req.body.sessionId,
-      email: req.body.email,
+      email: sanitizeEmail(req.body.email),
       role: req.body.role,
       invitedBy: req.user!.id,
     });
@@ -60,10 +61,11 @@ router.post(
   validate(acceptInvitationSchema),
   verifyCsrf,
   asyncHandler(async (req: Request, res: Response) => {
+    const email = req.body.email ? sanitizeEmail(req.body.email) : undefined;
     const result = await invitationService.acceptInvitation(
       req.params.token,
       req.user?.id,
-      req.body.email,
+      email,
     );
 
     res.json({

@@ -10,6 +10,7 @@ import { PrismaClient, MessageType } from '@prisma/client';
 import { log } from '../utils/logger';
 import { recordWsConnection, recordWsMessage, sessionParticipants } from '../utils/metrics';
 import { wsRateLimit } from '../middleware/rateLimit';
+import { SOCKET_EVENTS } from '../../../shared/contracts/socket-events';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -104,7 +105,7 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
     socket.join(`user:${userId}`);
 
     // Join session room
-    socket.on('join:session', async (sessionId: string) => {
+    socket.on(SOCKET_EVENTS.SESSION_JOIN, async (sessionId: string) => {
       try {
         // Verify user has access to session
         const session = await prisma.session.findUnique({
@@ -117,7 +118,7 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
         });
 
         if (!session || session.deleted_at) {
-          socket.emit('error', { message: 'Session not found' });
+          socket.emit(SOCKET_EVENTS.ERROR, { message: 'Session not found' });
           return;
         }
 
@@ -127,7 +128,7 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
           session.visibility === 'PUBLIC';
 
         if (!hasAccess) {
-          socket.emit('error', { message: 'Access denied' });
+          socket.emit(SOCKET_EVENTS.ERROR, { message: 'Access denied' });
           return;
         }
 
@@ -140,14 +141,16 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
         sessionParticipants.set({ session_id: sessionId }, roomSize);
 
         // Notify others
-        socket.to(`session:${sessionId}`).emit('user:joined', {
+        socket.to(`session:${sessionId}`).emit(SOCKET_EVENTS.USER_JOINED, {
           userId,
           userName: socket.userName,
-          timestamp: new Date().toISOString(),
+          userEmail: socket.userEmail,
+          role: session.participants[0]?.role || 'VIEWER',
+          joinedAt: new Date().toISOString(),
         });
 
         // Send notification to all session participants
-        socket.to(`session:${sessionId}`).emit('notification', {
+        socket.to(`session:${sessionId}`).emit(SOCKET_EVENTS.NOTIFICATION, {
           id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           type: 'join',
           title: 'User Joined',
@@ -160,12 +163,12 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
         recordWsMessage('socketio', 'inbound');
       } catch (error) {
         log.error('Failed to join session', error, { userId, sessionId });
-        socket.emit('error', { message: 'Failed to join session' });
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to join session' });
       }
     });
 
     // Leave session room
-    socket.on('leave:session', (sessionId: string) => {
+    socket.on(SOCKET_EVENTS.SESSION_LEAVE, (sessionId: string) => {
       socket.leave(`session:${sessionId}`);
 
       // Update metrics
@@ -173,14 +176,14 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
       sessionParticipants.set({ session_id: sessionId }, roomSize);
 
       // Notify others
-      socket.to(`session:${sessionId}`).emit('user:left', {
+      socket.to(`session:${sessionId}`).emit(SOCKET_EVENTS.USER_LEFT, {
         userId,
         userName: socket.userName,
-        timestamp: new Date().toISOString(),
+        leftAt: new Date().toISOString(),
       });
 
       // Send notification
-      socket.to(`session:${sessionId}`).emit('notification', {
+      socket.to(`session:${sessionId}`).emit(SOCKET_EVENTS.NOTIFICATION, {
         id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: 'leave',
         title: 'User Left',
@@ -195,7 +198,7 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
 
     // Send chat message
     socket.on(
-      'message:send',
+      SOCKET_EVENTS.CHAT_MESSAGE_SEND,
       async (data: { sessionId: string; content: string; type: MessageType; replyTo?: string }) => {
         try {
           const { sessionId, content, type, replyTo } = data;
@@ -221,7 +224,7 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
           });
 
           // Broadcast to room
-          io.to(`session:${sessionId}`).emit('message:new', message);
+          io.to(`session:${sessionId}`).emit(SOCKET_EVENTS.CHAT_MESSAGE_NEW, message);
 
           log.debug('Message sent', {
             userId,
@@ -231,13 +234,13 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
           recordWsMessage('socketio', 'outbound');
         } catch (error) {
           log.error('Failed to send message', error, { userId });
-          socket.emit('error', { message: 'Failed to send message' });
+          socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to send message' });
         }
       },
     );
 
     // React to message
-    socket.on('message:react', async (data: { messageId: string; emoji: string }) => {
+    socket.on(SOCKET_EVENTS.CHAT_MESSAGE_REACT, async (data: { messageId: string; emoji: string }) => {
       try {
         const { messageId, emoji } = data;
 

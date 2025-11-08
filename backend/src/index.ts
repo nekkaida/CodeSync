@@ -17,6 +17,7 @@ import sessionRoutes from './routes/session.routes';
 import userRoutes from './routes/user.routes';
 import invitationRoutes from './routes/invitation.routes';
 import snapshotRoutes from './routes/snapshot.routes';
+import fileRoutes from './routes/file.routes';
 
 // Import Socket.io server
 import { createSocketIOServer } from './websocket/socketio-server';
@@ -99,6 +100,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/snapshots', snapshotRoutes);
+app.use('/api', fileRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

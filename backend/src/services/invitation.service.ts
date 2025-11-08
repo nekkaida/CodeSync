@@ -5,6 +5,7 @@ import { PrismaClient, ParticipantRole } from '@prisma/client';
 import { NotFoundError, AuthorizationError, ValidationError } from '../utils/errors';
 import { log } from '../utils/logger';
 import { sendNotification } from '../utils/notifications';
+import emailService from './email.service';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();
@@ -120,8 +121,19 @@ export class InvitationService {
 
     log.info('Invitation created', { invitationId: invitation.id, email, sessionId });
 
-    // TODO: Send email notification
-    // await emailService.sendInvitation(email, invitation.token, session.name);
+    // Get inviter name for email
+    const inviter = await prisma.user.findUnique({
+      where: { id: invitedBy },
+      select: { name: true },
+    });
+
+    // Send email notification
+    await emailService.sendInvitation(
+      email,
+      inviter?.name || 'A user',
+      invitation.session.name,
+      invitation.token,
+    );
 
     // Check if invited user exists and send real-time notification
     const invitedUser = await prisma.user.findUnique({

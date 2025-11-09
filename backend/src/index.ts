@@ -1,6 +1,10 @@
 // Main Express server entry point
 // CodeSync Backend - Production Ready
 
+// Validate environment variables first
+import { validateEnv, printEnvSummary } from './utils/validateEnv';
+validateEnv();
+
 import express, { Request, Response } from 'express';
 import http from 'http';
 import cors from 'cors';
@@ -128,10 +132,10 @@ createSocketIOServer(server)
 
 // Start server
 server.listen(PORT, () => {
+  printEnvSummary();
   log.info(`🚀 CodeSync API server running on port ${PORT}`);
   log.info(`📊 Metrics available at http://localhost:${PORT}/metrics`);
   log.info(`💬 Socket.io available at ws://localhost:${PORT}/socket.io`);
-  log.info(`🔧 Environment: ${process.env.NODE_ENV}`);
   log.info(`✅ CORS enabled for: ${ALLOWED_ORIGINS.join(', ')}`);
   log.info(`📝 Note: Start Yjs server separately on port ${YJS_PORT}`);
 });

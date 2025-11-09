@@ -4,6 +4,8 @@
 import { PrismaClient } from '@prisma/client';
 import { NotFoundError, AuthorizationError } from '../utils/errors';
 import { log } from '../utils/logger';
+import { getSocketIOInstance } from '../utils/notifications';
+import { SOCKET_EVENTS } from '../../../shared/contracts/socket-events';
 
 const prisma = new PrismaClient();
 
@@ -216,6 +218,16 @@ export class SnapshotService {
       },
     });
 
+    // Broadcast restore event to all connected clients
+    const io = getSocketIOInstance();
+    io.to(`session:${snapshot.session_id}`).emit(SOCKET_EVENTS.SNAPSHOT_RESTORED, {
+      snapshotId,
+      sessionId: snapshot.session_id,
+      yjsState: snapshot.yjs_state,
+      restoredBy: userId,
+      timestamp: new Date(),
+    });
+
     // Log audit
     await prisma.auditLog.create({
       data: {
@@ -234,7 +246,7 @@ export class SnapshotService {
     return {
       success: true,
       snapshot,
-      message: 'Snapshot restored successfully. Refresh the editor to see changes.',
+      message: 'Snapshot restored successfully. Connected editors will update automatically.',
     };
   }
 

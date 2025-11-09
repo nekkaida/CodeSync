@@ -43,7 +43,24 @@ export const changePasswordSchema = z.object({
   }),
 });
 
+// Request password reset schema
+export const requestPasswordResetSchema = z.object({
+  body: z.object({
+    email: emailSchema,
+  }),
+});
+
+// Reset password schema
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    token: z.string().min(1, 'Reset token is required'),
+    newPassword: passwordSchema,
+  }),
+});
+
 // Export types
 export type RegisterInput = z.infer<typeof registerSchema>['body'];
 export type LoginInput = z.infer<typeof loginSchema>['body'];
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>['body'];
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];

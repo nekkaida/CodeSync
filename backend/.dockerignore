@@ -1,0 +1,34 @@
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Development files
+*.md
+.vscode
+.idea
+.DS_Store
+
+# Build output
+dist
+coverage
+*.log
+
+# Git
+.git
+.gitignore
+
+# Testing
+__tests__
+*.test.ts
+*.spec.ts
+jest.config.ts
+
+# Documentation
+docs
+README.md

@@ -1,0 +1,36 @@
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Next.js
+.next
+out
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Development files
+*.md
+.vscode
+.idea
+.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Testing
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+jest.config.ts
+coverage
+
+# Documentation
+docs
+README.md

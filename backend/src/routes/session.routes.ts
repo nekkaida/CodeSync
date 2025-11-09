@@ -6,7 +6,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { validate } from '../middleware/validate';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { verifyCsrf } from '../middleware/csrf';
-import { rateLimit } from '../middleware/rateLimit';
+import { rateLimit } from '../middleware/rateLimit.redis';
 import { sanitizeFilePath, sanitizeSearchQuery, sanitizeRegex } from '../utils/sanitize';
 import {
   createSessionSchema,

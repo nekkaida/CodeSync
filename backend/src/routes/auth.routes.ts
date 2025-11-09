@@ -8,7 +8,13 @@ import { authenticate } from '../middleware/auth';
 import { setTokenCookie, clearTokenCookie } from '../middleware/auth';
 import { verifyCsrf } from '../middleware/csrf';
 import { sanitizeEmail } from '../utils/sanitize';
-import { registerSchema, loginSchema, changePasswordSchema } from '../validators/auth.validator';
+import {
+  registerSchema,
+  loginSchema,
+  changePasswordSchema,
+  requestPasswordResetSchema,
+  resetPasswordSchema,
+} from '../validators/auth.validator';
 
 const router = Router();
 
@@ -121,6 +127,64 @@ router.post(
     res.json({
       success: true,
       message: 'Password changed successfully',
+    });
+  }),
+);
+
+// Request password reset
+router.post(
+  '/forgot-password',
+  validate(requestPasswordResetSchema),
+  verifyCsrf,
+  asyncHandler(async (req: Request, res: Response) => {
+    const email = sanitizeEmail(req.body.email);
+
+    await authService.requestPasswordReset(email);
+
+    // Always return success for security (don't reveal if email exists)
+    res.json({
+      success: true,
+      message: 'If an account exists with that email, a password reset link has been sent',
+    });
+  }),
+);
+
+// Verify reset token
+router.get(
+  '/reset-password/:token',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.params;
+
+    const isValid = await authService.verifyResetToken(token);
+
+    if (!isValid) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid or expired reset token',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: 'Token is valid',
+    });
+  }),
+);
+
+// Reset password with token
+router.post(
+  '/reset-password',
+  validate(resetPasswordSchema),
+  verifyCsrf,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+
+    await authService.resetPassword(token, newPassword);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully. You can now login with your new password.',
     });
   }),
 );

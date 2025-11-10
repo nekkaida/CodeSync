@@ -13,6 +13,7 @@ import cookieParser from 'cookie-parser';
 import { log, httpLogger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { setCsrfToken } from './middleware/csrf';
+import { requestTimeout } from './middleware/timeout';
 import { register } from './utils/metrics';
 
 // Import routes
@@ -73,6 +74,9 @@ app.use(cookieParser());
 
 // HTTP request logging
 app.use(httpLogger);
+
+// Request timeout (30 seconds)
+app.use(requestTimeout({ timeout: 30000 }));
 
 // CSRF token setup (set token on all requests)
 app.use(setCsrfToken);

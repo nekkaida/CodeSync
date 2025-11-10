@@ -16,6 +16,12 @@ import { setCsrfToken } from './middleware/csrf';
 import { requestTimeout } from './middleware/timeout';
 import { authenticateMetrics } from './middleware/metricsAuth';
 import { register } from './utils/metrics';
+import {
+  initializeSentry,
+  getSentryRequestHandler,
+  getSentryTracingHandler,
+  getSentryErrorHandler,
+} from './utils/sentry';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -33,6 +39,9 @@ import { startCleanupSchedule } from './jobs/cleanup';
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
+
+// Initialize Sentry
+initializeSentry(app);
 
 // Environment variables
 const PORT = process.env.PORT || 4000;
@@ -66,6 +75,10 @@ app.use(
     credentials: true,
   }),
 );
+
+// Sentry request tracking (must be first)
+app.use(getSentryRequestHandler());
+app.use(getSentryTracingHandler());
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -122,6 +135,9 @@ app.use((_req: Request, res: Response) => {
     },
   });
 });
+
+// Sentry error handler (before custom error handler)
+app.use(getSentryErrorHandler());
 
 // Global error handler (must be last)
 app.use(errorHandler);

@@ -31,7 +31,9 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -40,16 +42,47 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
     const socketInstance = io(WS_URL, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
 
     socketInstance.on('connect', () => {
       setIsConnected(true);
+      setReconnectAttempts(0);
       // Join session room
       socketInstance.emit(SOCKET_EVENTS.SESSION_JOIN, sessionId);
+      console.log('WebSocket connected');
     });
 
-    socketInstance.on(SOCKET_EVENTS.DISCONNECT, () => {
+    socketInstance.on(SOCKET_EVENTS.DISCONNECT, (reason) => {
       setIsConnected(false);
+      console.log('WebSocket disconnected:', reason);
+    });
+
+    socketInstance.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+      setIsConnected(false);
+    });
+
+    socketInstance.on('reconnect', (attemptNumber) => {
+      console.log('WebSocket reconnected after', attemptNumber, 'attempts');
+      setReconnectAttempts(0);
+    });
+
+    socketInstance.on('reconnect_attempt', (attemptNumber) => {
+      console.log('WebSocket reconnection attempt', attemptNumber);
+      setReconnectAttempts(attemptNumber);
+    });
+
+    socketInstance.on('reconnect_error', (error) => {
+      console.error('WebSocket reconnection error:', error);
+    });
+
+    socketInstance.on('reconnect_failed', () => {
+      console.error('WebSocket reconnection failed after max attempts');
     });
 
     // Handle incoming messages
@@ -107,10 +140,14 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
         <h3 className="text-lg font-semibold text-white mb-2">Chat</h3>
         <div className="flex items-center gap-2">
           <div
-            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : reconnectAttempts > 0 ? 'bg-yellow-500' : 'bg-red-500'}`}
           />
           <span className="text-xs text-gray-400">
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {isConnected
+              ? 'Connected'
+              : reconnectAttempts > 0
+              ? `Reconnecting... (${reconnectAttempts})`
+              : 'Disconnected'}
           </span>
         </div>
       </div>

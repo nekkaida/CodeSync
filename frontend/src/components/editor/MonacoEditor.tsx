@@ -24,10 +24,12 @@ const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({ sessionId
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const yjsDocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
   const bindingRef = useRef<MonacoBinding | null>(null);
   const fileModelsRef = useRef<Map<string, { ytext: Y.Text; binding: MonacoBinding | null; model: editor.ITextModel }>>(new Map());
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [userColor] = useState(() => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
     return colors[Math.floor(Math.random() * colors.length)];
@@ -35,29 +37,61 @@ const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(({ sessionId
 
   useEffect(() => {
     const WS_URL = process.env.NEXT_PUBLIC_YJS_URL || 'ws://localhost:4001';
+    let reconnectAttempt = 0;
+    const maxReconnectAttempts = 10;
 
     // Create Yjs document
     const ydoc = new Y.Doc();
     yjsDocRef.current = ydoc;
 
-    // Connect to WebSocket provider
+    // Connect to WebSocket provider with reconnection handling
     const provider = new WebsocketProvider(WS_URL, sessionId, ydoc, {
       connect: true,
+      maxBackoffTime: 5000,
     });
     providerRef.current = provider;
 
     provider.on('status', (event: any) => {
+      console.log('Yjs WebSocket status:', event.status);
       if (event.status === 'connected') {
         setConnectionStatus('connected');
+        setReconnectAttempts(0);
+        reconnectAttempt = 0;
       } else if (event.status === 'disconnected') {
         setConnectionStatus('disconnected');
+
+        // Attempt manual reconnection
+        if (reconnectAttempt < maxReconnectAttempts) {
+          reconnectAttempt++;
+          setReconnectAttempts(reconnectAttempt);
+
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempt - 1), 5000);
+          console.log(`Attempting Yjs reconnection ${reconnectAttempt}/${maxReconnectAttempts} in ${delay}ms`);
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            provider.connect();
+          }, delay);
+        } else {
+          console.error('Yjs max reconnection attempts reached');
+        }
       }
     });
 
     provider.on('sync', (isSynced: boolean) => {
       if (isSynced) {
         setLoading(false);
+        console.log('Yjs document synced');
       }
+    });
+
+    provider.on('connection-close', () => {
+      console.log('Yjs WebSocket connection closed');
+      setConnectionStatus('disconnected');
+    });
+
+    provider.on('connection-error', (error: any) => {
+      console.error('Yjs WebSocket connection error:', error);
+      setConnectionStatus('disconnected');
     });
 
     // Auto-save all open files periodically

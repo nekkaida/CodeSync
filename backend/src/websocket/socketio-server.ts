@@ -318,7 +318,7 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
     });
 
     // Disconnect handler
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       log.info('Socket.io disconnected', { userId, ip });
       recordWsConnection('socketio', false);
 
@@ -326,6 +326,22 @@ export const createSocketIOServer = async (httpServer: HTTPServer) => {
       if (socket.sessionId) {
         const roomSize = io.sockets.adapter.rooms.get(`session:${socket.sessionId}`)?.size || 0;
         sessionParticipants.set({ session_id: socket.sessionId }, roomSize);
+
+        // Mark participant as left in database
+        try {
+          await prisma.participant.updateMany({
+            where: {
+              session_id: socket.sessionId,
+              user_id: userId,
+              left_at: null,
+            },
+            data: {
+              left_at: new Date(),
+            },
+          });
+        } catch (error) {
+          log.error('Failed to update participant left_at', error);
+        }
 
         // Notify others
         socket.to(`session:${socket.sessionId}`).emit('user:left', {

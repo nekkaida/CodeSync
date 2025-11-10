@@ -28,6 +28,7 @@ import fileRoutes from './routes/file.routes';
 // Import Socket.io server
 import { createSocketIOServer } from './websocket/socketio-server';
 import { setSocketIOInstance } from './utils/notifications';
+import { startCleanupSchedule } from './jobs/cleanup';
 
 // Initialize Express app
 const app = express();
@@ -143,6 +144,9 @@ server.listen(PORT, () => {
   log.info(`💬 Socket.io available at ws://localhost:${PORT}/socket.io`);
   log.info(`✅ CORS enabled for: ${ALLOWED_ORIGINS.join(', ')}`);
   log.info(`📝 Note: Start Yjs server separately on port ${YJS_PORT}`);
+
+  // Start automated cleanup jobs
+  startCleanupSchedule();
 });
 
 // Graceful shutdown

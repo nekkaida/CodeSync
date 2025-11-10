@@ -17,8 +17,9 @@ import { wsRateLimit } from '../middleware/rateLimit';
 
 const prisma = new PrismaClient();
 
-// Store active Yjs documents in memory
-const docs = new Map<string, Y.Doc>();
+// Store active Yjs documents in memory with last access time
+const docs = new Map<string, { doc: Y.Doc; lastAccess: number }>();
+const DOCUMENT_TIMEOUT = 30 * 60 * 1000; // 30 minutes of inactivity
 
 // Persistence - save Yjs documents to database
 class YjsPersistence {
@@ -178,10 +179,16 @@ export const createYjsServer = (port: number = 4001) => {
       recordWsConnection('yjs', true);
       yjsDocumentsActive.inc();
 
-      // Track document
+      // Track document with last access time
       if (!docs.has(docName)) {
         const ydoc = new Y.Doc();
-        docs.set(docName, ydoc);
+        docs.set(docName, { doc: ydoc, lastAccess: Date.now() });
+      } else {
+        // Update last access time
+        const entry = docs.get(docName);
+        if (entry) {
+          entry.lastAccess = Date.now();
+        }
       }
 
       // Message tracking
@@ -201,11 +208,12 @@ export const createYjsServer = (port: number = 4001) => {
 
         if (!stillInUse) {
           // Save and remove document
-          const ydoc = docs.get(docName);
-          if (ydoc) {
-            persistence.writeState(docName, ydoc);
+          const entry = docs.get(docName);
+          if (entry) {
+            persistence.writeState(docName, entry.doc);
             docs.delete(docName);
             yjsDocumentsActive.dec();
+            log.info('Yjs document removed from memory', { docName });
           }
         }
       });
@@ -220,7 +228,35 @@ export const createYjsServer = (port: number = 4001) => {
     log.info(`🔗 Yjs WebSocket server running on port ${port}`);
   });
 
-  return { server, wss };
+  // Periodic cleanup of inactive documents
+  const cleanupInterval = setInterval(async () => {
+    const now = Date.now();
+    const docsToCleanup: string[] = [];
+
+    // Find inactive documents
+    for (const [docName, entry] of docs.entries()) {
+      if (now - entry.lastAccess > DOCUMENT_TIMEOUT) {
+        docsToCleanup.push(docName);
+      }
+    }
+
+    // Cleanup inactive documents
+    for (const docName of docsToCleanup) {
+      const entry = docs.get(docName);
+      if (entry) {
+        log.info('Cleaning up inactive Yjs document', { docName, inactiveFor: now - entry.lastAccess });
+        await persistence.writeState(docName, entry.doc);
+        docs.delete(docName);
+        yjsDocumentsActive.dec();
+      }
+    }
+
+    if (docsToCleanup.length > 0) {
+      log.info(`Cleaned up ${docsToCleanup.length} inactive Yjs documents`);
+    }
+  }, 5 * 60 * 1000); // Check every 5 minutes
+
+  return { server, wss, cleanupInterval };
 };
 
 // Cleanup function
@@ -228,8 +264,8 @@ export const cleanupYjsServer = async () => {
   log.info('Cleaning up Yjs documents...');
 
   // Save all active documents
-  for (const [docName, ydoc] of docs.entries()) {
-    await persistence.writeState(docName, ydoc);
+  for (const [docName, entry] of docs.entries()) {
+    await persistence.writeState(docName, entry.doc);
   }
 
   docs.clear();

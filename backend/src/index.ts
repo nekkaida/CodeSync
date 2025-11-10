@@ -14,6 +14,7 @@ import { log, httpLogger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { setCsrfToken } from './middleware/csrf';
 import { requestTimeout } from './middleware/timeout';
+import { authenticateMetrics } from './middleware/metricsAuth';
 import { register } from './utils/metrics';
 
 // Import routes
@@ -91,8 +92,8 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// Metrics endpoint for Prometheus
-app.get('/metrics', async (_req: Request, res: Response) => {
+// Metrics endpoint for Prometheus (secured)
+app.get('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
   try {
     res.set('Content-Type', register.contentType);
     const metrics = await register.metrics();

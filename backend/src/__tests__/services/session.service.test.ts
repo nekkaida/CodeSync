@@ -197,7 +197,7 @@ describe('SessionService', () => {
 
       expect(mockPrisma.session.update).toHaveBeenCalledWith({
         where: { id: 'session-1' },
-        data: { deleted_at: expect.any(Date) },
+        data: { deleted_at: expect.any(Date), deleted_by: 'user-1' },
       });
     });
 

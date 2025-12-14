@@ -661,4 +661,247 @@ describe('Session Routes', () => {
       expect(response.status).toBe(401);
     });
   });
+
+  describe('PUT /api/sessions/:sessionId/content', () => {
+    it('should update session content', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.session.update.mockResolvedValue({
+        ...mockSession,
+        content: 'console.log("Updated");',
+      } as any);
+
+      const response = await request(app)
+        .put(`/api/sessions/${SESSION_ID}/content`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ content: 'console.log("Updated");' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Content saved successfully');
+    });
+
+    it('should return 401 when not authenticated', async () => {
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .put(`/api/sessions/${SESSION_ID}/content`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ content: 'console.log("Updated");' });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('GET /api/sessions/:sessionId/files/:filePath/content', () => {
+    it('should get file content by path', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.sessionFile.findFirst.mockResolvedValue({
+        id: FILE_ID,
+        session_id: SESSION_ID,
+        name: 'test.ts',
+        path: 'test.ts',
+        content: 'const x = 1;',
+      } as any);
+
+      const response = await request(app)
+        .get(`/api/sessions/${SESSION_ID}/files/test.ts/content`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should return 401 when not authenticated', async () => {
+      const response = await request(app).get(
+        `/api/sessions/${SESSION_ID}/files/test.ts/content`,
+      );
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should handle nested file paths', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.sessionFile.findFirst.mockResolvedValue({
+        id: FILE_ID,
+        session_id: SESSION_ID,
+        name: 'index.ts',
+        path: 'src/utils/index.ts',
+        content: 'export const util = {};',
+      } as any);
+
+      const response = await request(app)
+        .get(`/api/sessions/${SESSION_ID}/files/src/utils/index.ts/content`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+  });
+
+  describe('PUT /api/sessions/:sessionId/files/:filePath/content', () => {
+    it('should update file content by path', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.sessionFile.findFirst.mockResolvedValue({
+        id: FILE_ID,
+        session_id: SESSION_ID,
+        name: 'test.ts',
+        path: 'test.ts',
+        content: 'const x = 1;',
+      } as any);
+      mockPrisma.sessionFile.update.mockResolvedValue({} as any);
+
+      const response = await request(app)
+        .put(`/api/sessions/${SESSION_ID}/files/test.ts/content`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ content: 'const x = 2;' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('File content saved successfully');
+    });
+
+    it('should return 401 when not authenticated', async () => {
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .put(`/api/sessions/${SESSION_ID}/files/test.ts/content`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ content: 'const x = 2;' });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('POST /api/sessions/:sessionId/search', () => {
+    it('should search files in session', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.sessionFile.findMany.mockResolvedValue([
+        {
+          id: FILE_ID,
+          session_id: SESSION_ID,
+          name: 'test.ts',
+          path: 'test.ts',
+          content: 'const searchTerm = "found";',
+        },
+      ] as any);
+
+      const response = await request(app)
+        .post(`/api/sessions/${SESSION_ID}/search`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ query: 'searchTerm' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.results).toBeDefined();
+    });
+
+    it('should return 401 when not authenticated', async () => {
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post(`/api/sessions/${SESSION_ID}/search`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ query: 'test' });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should support regex search', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.sessionFile.findMany.mockResolvedValue([
+        {
+          id: FILE_ID,
+          session_id: SESSION_ID,
+          name: 'test.ts',
+          path: 'test.ts',
+          content: 'function testFunc() {}',
+        },
+      ] as any);
+
+      const response = await request(app)
+        .post(`/api/sessions/${SESSION_ID}/search`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ query: 'function\\s+\\w+', regex: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should support case-sensitive search', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.sessionFile.findMany.mockResolvedValue([
+        {
+          id: FILE_ID,
+          session_id: SESSION_ID,
+          name: 'test.ts',
+          path: 'test.ts',
+          content: 'const MyVariable = 1;',
+        },
+      ] as any);
+
+      const response = await request(app)
+        .post(`/api/sessions/${SESSION_ID}/search`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ query: 'MyVariable', caseSensitive: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should support whole word search', async () => {
+      const { cookies, csrfToken, mockUser } = await loginUser();
+
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.session.findUnique.mockResolvedValue(mockSession as any);
+      mockPrisma.sessionFile.findMany.mockResolvedValue([
+        {
+          id: FILE_ID,
+          session_id: SESSION_ID,
+          name: 'test.ts',
+          path: 'test.ts',
+          content: 'const value = getValue();',
+        },
+      ] as any);
+
+      const response = await request(app)
+        .post(`/api/sessions/${SESSION_ID}/search`)
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ query: 'value', wholeWord: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+  });
 });

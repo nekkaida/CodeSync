@@ -249,6 +249,49 @@ describe('Auth Routes', () => {
 
       expect(response.status).toBe(401);
     });
+
+    it('should return current user when authenticated', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 12);
+      const mockUser = {
+        id: 'cluser00000000000001',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'USER',
+        password: hashedPassword,
+        deleted_at: null,
+        deleted_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        ai_cost_limit: 10.0,
+      };
+
+      // Login first
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      const { cookies, csrfToken } = await getAuthHeaders();
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ email: 'test@example.com', password: 'Password123' });
+
+      const authCookies = getCookies(loginResponse);
+      const allCookies = [...cookies, ...authCookies.filter((c) => c.includes('token='))];
+
+      // Mock for /me endpoint
+      mockPrisma.tokenBlacklist.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', allCookies);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toBeDefined();
+      expect(response.body.data.user.email).toBe('test@example.com');
+    });
   });
 
   describe('POST /api/auth/logout', () => {
@@ -261,6 +304,51 @@ describe('Auth Routes', () => {
         .set('x-csrf-token', csrfToken);
 
       expect(response.status).toBe(401);
+    });
+
+    it('should logout successfully when authenticated', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 12);
+      const mockUser = {
+        id: 'cluser00000000000001',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'USER',
+        password: hashedPassword,
+        deleted_at: null,
+        deleted_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        ai_cost_limit: 10.0,
+      };
+
+      // Login first
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      const { cookies, csrfToken } = await getAuthHeaders();
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ email: 'test@example.com', password: 'Password123' });
+
+      const authCookies = getCookies(loginResponse);
+      const allCookies = [...cookies, ...authCookies.filter((c) => c.includes('token='))];
+
+      // Mock for logout
+      mockPrisma.tokenBlacklist.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.tokenBlacklist.create.mockResolvedValue({} as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      const response = await request(app)
+        .post('/api/auth/logout')
+        .set('Cookie', allCookies)
+        .set('x-csrf-token', csrfToken);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Logged out successfully');
     });
   });
 
@@ -278,6 +366,99 @@ describe('Auth Routes', () => {
         });
 
       expect(response.status).toBe(401);
+    });
+
+    it('should change password when authenticated', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 12);
+      const mockUser = {
+        id: 'cluser00000000000001',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'USER',
+        password: hashedPassword,
+        deleted_at: null,
+        deleted_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        ai_cost_limit: 10.0,
+      };
+
+      // Login first
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      const { cookies, csrfToken } = await getAuthHeaders();
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ email: 'test@example.com', password: 'Password123' });
+
+      const authCookies = getCookies(loginResponse);
+      const allCookies = [...cookies, ...authCookies.filter((c) => c.includes('token='))];
+
+      // Mock for change password
+      mockPrisma.tokenBlacklist.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.user.update.mockResolvedValue({} as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      const response = await request(app)
+        .post('/api/auth/change-password')
+        .set('Cookie', allCookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          currentPassword: 'Password123',
+          newPassword: 'NewPassword456',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Password changed successfully');
+    });
+
+    it('should return 400 for weak new password', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 12);
+      const mockUser = {
+        id: 'cluser00000000000001',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'USER',
+        password: hashedPassword,
+        deleted_at: null,
+        deleted_by: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        ai_cost_limit: 10.0,
+      };
+
+      // Login first
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      const { cookies, csrfToken } = await getAuthHeaders();
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({ email: 'test@example.com', password: 'Password123' });
+
+      const authCookies = getCookies(loginResponse);
+      const allCookies = [...cookies, ...authCookies.filter((c) => c.includes('token='))];
+
+      mockPrisma.tokenBlacklist.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+
+      const response = await request(app)
+        .post('/api/auth/change-password')
+        .set('Cookie', allCookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          currentPassword: 'Password123',
+          newPassword: 'weak',
+        });
+
+      expect(response.status).toBe(400);
     });
   });
 

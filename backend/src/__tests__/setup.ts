@@ -2,12 +2,89 @@
 // Global configuration and mocks for testing
 
 import { PrismaClient } from '@prisma/client';
-import { mockDeep, mockReset, DeepMockProxy } from 'jest-mock-extended';
+import { mockDeep, mockReset, type DeepMockProxy } from 'jest-mock-extended';
+
+// Export type for use in tests
+export type MockPrismaClient = DeepMockProxy<PrismaClient>;
+
+// Define enums to match Prisma schema
+const UserRole = {
+  USER: 'USER',
+  ADMIN: 'ADMIN',
+  MODERATOR: 'MODERATOR',
+} as const;
+
+const ProgrammingLanguage = {
+  javascript: 'javascript',
+  typescript: 'typescript',
+  python: 'python',
+  java: 'java',
+  go: 'go',
+  rust: 'rust',
+  cpp: 'cpp',
+  csharp: 'csharp',
+  php: 'php',
+  ruby: 'ruby',
+} as const;
+
+const SessionVisibility = {
+  PUBLIC: 'PUBLIC',
+  PRIVATE: 'PRIVATE',
+  UNLISTED: 'UNLISTED',
+} as const;
+
+const SessionStatus = {
+  ACTIVE: 'ACTIVE',
+  ARCHIVED: 'ARCHIVED',
+  PAUSED: 'PAUSED',
+} as const;
+
+const ParticipantRole = {
+  OWNER: 'OWNER',
+  EDITOR: 'EDITOR',
+  COMMENTER: 'COMMENTER',
+  VIEWER: 'VIEWER',
+} as const;
+
+const MessageType = {
+  TEXT: 'TEXT',
+  CODE: 'CODE',
+  SYSTEM: 'SYSTEM',
+  FILE: 'FILE',
+} as const;
+
+const RateLimitType = {
+  API: 'API',
+  AI: 'AI',
+  WEBSOCKET: 'WEBSOCKET',
+} as const;
+
+const AuditAction = {
+  CREATE: 'CREATE',
+  UPDATE: 'UPDATE',
+  DELETE: 'DELETE',
+  LOGIN: 'LOGIN',
+  LOGOUT: 'LOGOUT',
+  INVITE: 'INVITE',
+  JOIN: 'JOIN',
+  LEAVE: 'LEAVE',
+  EXPORT: 'EXPORT',
+  REQUEST: 'REQUEST',
+  RESTORE: 'RESTORE',
+} as const;
 
 // Mock Prisma Client
 jest.mock('@prisma/client', () => ({
   __esModule: true,
   PrismaClient: jest.fn(() => mockPrisma),
+  UserRole,
+  ProgrammingLanguage,
+  SessionVisibility,
+  SessionStatus,
+  ParticipantRole,
+  MessageType,
+  RateLimitType,
+  AuditAction,
 }));
 
 export const mockPrisma = mockDeep<PrismaClient>();

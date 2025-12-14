@@ -40,6 +40,7 @@ model User {
   ai_usage       AIUsage[]
   audit_logs     AuditLog[]
   token_blacklist TokenBlacklist[]
+  password_resets PasswordReset[]
 
   @@index([email])
   @@index([deleted_at])
@@ -347,6 +348,22 @@ model TokenBlacklist {
   @@map("token_blacklist")
 }
 
+model PasswordReset {
+  id    String @id @default(cuid())
+  token String @unique
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  used_at    DateTime?
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("password_resets")
+}
+
 model RateLimit {
   id String @id @default(cuid())
 
@@ -443,4 +460,6 @@ enum AuditAction {
   JOIN
   LEAVE
   EXPORT
+  REQUEST
+  RESTORE
 }

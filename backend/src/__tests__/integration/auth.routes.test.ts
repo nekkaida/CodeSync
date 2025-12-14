@@ -280,6 +280,159 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(401);
     });
   });
+
+  describe('POST /api/auth/forgot-password', () => {
+    it('should return success for any email (security)', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post('/api/auth/forgot-password')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          email: 'nonexistent@example.com',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toContain('If an account exists');
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post('/api/auth/forgot-password')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          email: 'invalid-email',
+        });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for missing email', async () => {
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post('/api/auth/forgot-password')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({});
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('GET /api/auth/reset-password/:token', () => {
+    it('should return success for valid token', async () => {
+      mockPrisma.passwordReset.findFirst.mockResolvedValue({
+        id: 'reset-1',
+        token: 'hashed-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+      } as any);
+
+      const response = await request(app).get('/api/auth/reset-password/valid-token');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Token is valid');
+    });
+
+    it('should return 400 for invalid token', async () => {
+      mockPrisma.passwordReset.findFirst.mockResolvedValue(null);
+
+      const response = await request(app).get('/api/auth/reset-password/invalid-token');
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('POST /api/auth/reset-password', () => {
+    it('should reset password with valid token', async () => {
+      mockPrisma.passwordReset.findFirst.mockResolvedValue({
+        id: 'reset-1',
+        user_id: 'user-1',
+        token: 'hashed-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          deleted_at: null,
+        },
+      } as any);
+      mockPrisma.user.update.mockResolvedValue({} as any);
+      mockPrisma.passwordReset.update.mockResolvedValue({} as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          token: 'valid-reset-token',
+          newPassword: 'NewPassword123',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toContain('Password reset successfully');
+    });
+
+    it('should return 401 for invalid token', async () => {
+      mockPrisma.passwordReset.findFirst.mockResolvedValue(null);
+
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          token: 'invalid-token',
+          newPassword: 'NewPassword123',
+        });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 400 for weak password', async () => {
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          token: 'valid-token',
+          newPassword: 'weak',
+        });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for missing token', async () => {
+      const { cookies, csrfToken } = await getAuthHeaders();
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .set('Cookie', cookies)
+        .set('x-csrf-token', csrfToken)
+        .send({
+          newPassword: 'NewPassword123',
+        });
+
+      expect(response.status).toBe(400);
+    });
+  });
 });
 
 describe('Health Check', () => {

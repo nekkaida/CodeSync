@@ -26,6 +26,7 @@ dist/
 *.pem
 .vscode/
 .idea/
+.claude/
 
 # Debug
 *.log

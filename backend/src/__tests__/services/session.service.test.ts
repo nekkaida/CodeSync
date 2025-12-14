@@ -368,6 +368,28 @@ describe('SessionService', () => {
     });
   });
 
+  describe('updateSessionContent', () => {
+    it('should throw NotFoundError for non-existent session', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue(null);
+
+      await expect(
+        sessionService.updateSessionContent(SESSION_ID, USER_ID, 'content'),
+      ).rejects.toThrow('Session not found');
+    });
+
+    it('should throw AuthorizationError for non-participant', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({
+        ...mockSession,
+        owner_id: 'other-user',
+      } as any);
+      mockPrisma.participant.findFirst.mockResolvedValue(null);
+
+      await expect(
+        sessionService.updateSessionContent(SESSION_ID, USER_ID, 'content'),
+      ).rejects.toThrow('Not authorized to update session content');
+    });
+  });
+
   describe('updateCursorPosition', () => {
     it('should update cursor position', async () => {
       mockPrisma.participant.updateMany.mockResolvedValue({ count: 1 });

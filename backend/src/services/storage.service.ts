@@ -181,7 +181,7 @@ class StorageService {
     return new Promise((resolve, reject) => {
       const stream = this.client!.listObjects(this.bucket, prefix, false);
 
-      stream.on('data', (obj) => files.push(obj));
+      stream.on('data', (obj) => files.push(obj as Minio.BucketItem));
       stream.on('end', () => resolve(files));
       stream.on('error', reject);
     });

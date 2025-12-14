@@ -10,6 +10,10 @@ export const setSocketIOInstance = (ioInstance: SocketIOServer) => {
   io = ioInstance;
 };
 
+export const getSocketIOInstance = (): SocketIOServer | null => {
+  return io;
+};
+
 interface NotificationPayload {
   type: 'invitation' | 'join' | 'leave' | 'message' | 'snapshot' | 'system';
   title: string;

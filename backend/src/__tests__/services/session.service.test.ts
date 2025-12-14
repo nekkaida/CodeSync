@@ -196,6 +196,23 @@ describe('SessionService', () => {
         }),
       );
     });
+
+    it('should filter by status', async () => {
+      mockPrisma.session.findMany.mockResolvedValue([]);
+      mockPrisma.session.count.mockResolvedValue(0);
+
+      await sessionService.listSessions({
+        status: 'ACTIVE' as any,
+      });
+
+      expect(mockPrisma.session.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: 'ACTIVE',
+          }),
+        }),
+      );
+    });
   });
 
   describe('updateSession', () => {
@@ -430,6 +447,63 @@ describe('SessionService', () => {
         sessionService.deleteFile(SESSION_ID, USER_ID, FILE_ID),
       ).rejects.toThrow('Session not found');
     });
+
+    it('should throw AuthorizationError for non-participant', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({
+        ...mockSession,
+        owner_id: 'other-user',
+      } as any);
+      mockPrisma.participant.findFirst.mockResolvedValue(null);
+
+      await expect(
+        sessionService.deleteFile(SESSION_ID, USER_ID, FILE_ID),
+      ).rejects.toThrow('Not authorized to delete files');
+    });
+  });
+
+  describe('getFileContent', () => {
+    it('should throw NotFoundError for non-existent session', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue(null);
+
+      await expect(
+        sessionService.getFileContent(SESSION_ID, USER_ID, 'test.ts'),
+      ).rejects.toThrow('Session not found');
+    });
+
+    it('should throw AuthorizationError for private session non-participant', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({
+        ...mockSession,
+        owner_id: 'other-user',
+        visibility: 'PRIVATE',
+      } as any);
+      mockPrisma.participant.findFirst.mockResolvedValue(null);
+
+      await expect(
+        sessionService.getFileContent(SESSION_ID, USER_ID, 'test.ts'),
+      ).rejects.toThrow('Not authorized to access this session');
+    });
+  });
+
+  describe('updateFileContent', () => {
+    it('should throw NotFoundError for non-existent session', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue(null);
+
+      await expect(
+        sessionService.updateFileContent(SESSION_ID, USER_ID, 'test.ts', 'content'),
+      ).rejects.toThrow('Session not found');
+    });
+
+    it('should throw AuthorizationError for non-participant', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({
+        ...mockSession,
+        owner_id: 'other-user',
+      } as any);
+      mockPrisma.participant.findFirst.mockResolvedValue(null);
+
+      await expect(
+        sessionService.updateFileContent(SESSION_ID, USER_ID, 'test.ts', 'content'),
+      ).rejects.toThrow('Not authorized to edit this session');
+    });
   });
 
   describe('searchFiles', () => {
@@ -470,6 +544,39 @@ describe('SessionService', () => {
       await expect(
         sessionService.searchFiles(SESSION_ID, USER_ID, 'test'),
       ).rejects.toThrow('Session not found');
+    });
+
+    it('should throw AuthorizationError for private session non-participant', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({
+        ...mockSession,
+        owner_id: 'other-user',
+        visibility: 'PRIVATE',
+      } as any);
+      mockPrisma.participant.findFirst.mockResolvedValue(null);
+
+      await expect(
+        sessionService.searchFiles(SESSION_ID, USER_ID, 'test'),
+      ).rejects.toThrow('Not authorized to access this session');
+    });
+
+    it('should handle zero-length regex matches', async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({
+        ...mockSession,
+        visibility: 'PUBLIC',
+      } as any);
+      mockPrisma.participant.findFirst.mockResolvedValue(null);
+      mockPrisma.sessionFile.findMany.mockResolvedValue([
+        {
+          path: 'test.ts',
+          content: 'aaa',
+        },
+      ] as any);
+
+      // Empty match regex that could cause infinite loop without proper handling
+      const results = await sessionService.searchFiles(SESSION_ID, USER_ID, 'a*', { regex: true });
+
+      // Should find matches without infinite looping
+      expect(results.length).toBeGreaterThan(0);
     });
   });
 });

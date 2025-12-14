@@ -10,7 +10,7 @@ import { PrismaClient, MessageType } from '@prisma/client';
 import { log } from '../utils/logger';
 import { recordWsConnection, recordWsMessage, sessionParticipants } from '../utils/metrics';
 import { wsRateLimit } from '../middleware/rateLimit.redis';
-import { SOCKET_EVENTS } from '../../../shared/contracts/socket-events';
+import { SOCKET_EVENTS } from '../contracts/socket-events';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET!;

@@ -2,7 +2,8 @@
 // Global configuration and mocks for testing
 
 import { PrismaClient } from '@prisma/client';
-import { mockDeep, mockReset, type DeepMockProxy } from 'jest-mock-extended';
+import { mockDeep, mockReset } from 'jest-mock-extended';
+import type { DeepMockProxy } from 'jest-mock-extended';
 
 // Export type for use in tests
 export type MockPrismaClient = DeepMockProxy<PrismaClient>;
@@ -116,7 +117,12 @@ jest.mock('../utils/redis', () => ({
       zcard: jest.fn().mockReturnThis(),
       zadd: jest.fn().mockReturnThis(),
       expire: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue([[null, 0], [null, 0]]),
+      exec: jest.fn().mockResolvedValue([
+        [null, 0], // zremrangebyscore result
+        [null, 0], // zcard result (count before add)
+        [null, 1], // zadd result
+        [null, 1], // expire result
+      ]),
     })),
   })),
   closeRedisClient: jest.fn(),

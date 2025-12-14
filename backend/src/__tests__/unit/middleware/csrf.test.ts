@@ -198,15 +198,31 @@ describe('CSRF middleware', () => {
       );
     });
 
-    it('should return error for invalid token', () => {
+    it('should return error for invalid token with different length', () => {
       mockReq.cookies = { sessionId: 'session-123' };
-      mockReq.headers = { 'x-csrf-token': 'invalid-token-with-correct-length-for-comparison-purposes' };
+      mockReq.headers = { 'x-csrf-token': 'invalid-token-short' };
 
       verifyCsrf(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           code: 'CSRF_ERROR', // timingSafeEqual throws for different lengths
+        }),
+      );
+    });
+
+    it('should return error for invalid token with same length', () => {
+      mockReq.cookies = { sessionId: 'session-123' };
+      // Generate a 64-char hex string (same length as valid token) but with wrong value
+      const wrongToken = '0'.repeat(64);
+      mockReq.headers = { 'x-csrf-token': wrongToken };
+
+      verifyCsrf(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Invalid CSRF token',
+          code: 'CSRF_INVALID',
         }),
       );
     });

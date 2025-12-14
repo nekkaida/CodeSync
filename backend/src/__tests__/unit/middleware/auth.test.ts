@@ -6,6 +6,7 @@ import {
   authenticate,
   optionalAuth,
   requireRole,
+  requireSessionAccess,
   generateToken,
   setTokenCookie,
   clearTokenCookie,
@@ -321,6 +322,142 @@ describe('Auth Middleware', () => {
         expect.objectContaining({
           httpOnly: true,
           sameSite: 'strict',
+        }),
+      );
+    });
+  });
+
+  describe('requireSessionAccess', () => {
+    it('should call next with AuthenticationError when no user', async () => {
+      const mockReq = createMockRequest({ params: { sessionId: 'session-1' } });
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(AuthenticationError));
+      const error = mockNext.mock.calls[0][0];
+      expect(error.message).toContain('Authentication required');
+    });
+
+    it('should call next with AuthorizationError when no sessionId', async () => {
+      const mockReq = {
+        ...createMockRequest(),
+        user: { id: 'user-1', email: 'test@example.com', name: 'Test', role: 'USER' },
+        params: {},
+        body: {},
+      };
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(AuthorizationError));
+      const error = mockNext.mock.calls[0][0];
+      expect(error.message).toContain('Session ID required');
+    });
+
+    it('should allow admin access without checking session', async () => {
+      const mockReq = {
+        ...createMockRequest(),
+        user: { id: 'admin-1', email: 'admin@example.com', name: 'Admin', role: 'ADMIN' },
+        params: { sessionId: 'session-1' },
+      };
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith();
+      expect(mockPrisma.session.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should allow owner access', async () => {
+      const mockReq = {
+        ...createMockRequest(),
+        user: { id: 'user-1', email: 'test@example.com', name: 'Test', role: 'USER' },
+        params: { sessionId: 'session-1' },
+      };
+
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-1',
+        owner_id: 'user-1',
+        participants: [],
+      } as any);
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('should allow participant access', async () => {
+      const mockReq = {
+        ...createMockRequest(),
+        user: { id: 'user-2', email: 'participant@example.com', name: 'Participant', role: 'USER' },
+        params: { sessionId: 'session-1' },
+      };
+
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-1',
+        owner_id: 'user-1',
+        participants: [{ user_id: 'user-2' }],
+      } as any);
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('should call next with AuthorizationError when session not found', async () => {
+      const mockReq = {
+        ...createMockRequest(),
+        user: { id: 'user-1', email: 'test@example.com', name: 'Test', role: 'USER' },
+        params: { sessionId: 'session-1' },
+      };
+
+      mockPrisma.session.findUnique.mockResolvedValue(null);
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(AuthorizationError));
+      const error = mockNext.mock.calls[0][0];
+      expect(error.message).toContain('not found');
+    });
+
+    it('should call next with AuthorizationError when not owner or participant', async () => {
+      const mockReq = {
+        ...createMockRequest(),
+        user: { id: 'user-3', email: 'other@example.com', name: 'Other', role: 'USER' },
+        params: { sessionId: 'session-1' },
+      };
+
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-1',
+        owner_id: 'user-1',
+        participants: [],
+      } as any);
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(AuthorizationError));
+      const error = mockNext.mock.calls[0][0];
+      expect(error.message).toContain('Access denied');
+    });
+
+    it('should get sessionId from body if not in params', async () => {
+      const mockReq = {
+        ...createMockRequest(),
+        user: { id: 'user-1', email: 'test@example.com', name: 'Test', role: 'USER' },
+        params: {},
+        body: { sessionId: 'session-1' },
+      };
+
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-1',
+        owner_id: 'user-1',
+        participants: [],
+      } as any);
+
+      await requireSessionAccess(mockReq as any, mockRes as any, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith();
+      expect(mockPrisma.session.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'session-1' },
         }),
       );
     });

@@ -21,7 +21,7 @@ const upload = multer({
   limits: {
     fileSize: FILE.MAX_SIZE_BYTES,
   },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req, _file, cb) => {
     // Allow all file types for now
     // Add restrictions here if needed
     cb(null, true);

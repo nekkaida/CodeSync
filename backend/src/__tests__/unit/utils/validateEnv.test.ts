@@ -306,6 +306,20 @@ describe('validateEnv', () => {
     expect(exitCode).toBe(1);
   });
 
+  it('should exit with invalid S3_PORT value', () => {
+    process.env.S3_PORT = 'not-a-port';
+
+    expect(() => validateEnv()).toThrow();
+    expect(exitCode).toBe(1);
+  });
+
+  it('should exit with invalid SMTP_PORT value', () => {
+    process.env.SMTP_PORT = 'invalid-port';
+
+    expect(() => validateEnv()).toThrow();
+    expect(exitCode).toBe(1);
+  });
+
   it('should set default values for optional vars', () => {
     delete process.env.PORT;
     delete process.env.NODE_ENV;

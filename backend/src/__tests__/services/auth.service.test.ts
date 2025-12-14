@@ -14,8 +14,10 @@ jest.mock('@prisma/client', () => ({
 
 // Mock email service
 jest.mock('../../services/email.service', () => ({
+  __esModule: true,
   default: {
     sendPasswordReset: jest.fn().mockResolvedValue(true),
+    sendEmail: jest.fn().mockResolvedValue(true),
   },
 }));
 
@@ -322,6 +324,39 @@ describe('AuthService', () => {
 
       await expect(authService.requestPasswordReset('test@example.com')).resolves.not.toThrow();
       expect(mockPrisma.passwordReset.create).not.toHaveBeenCalled();
+    });
+
+    it('should create reset token and send email for existing user', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.passwordReset.create.mockResolvedValue({
+        id: 'clreset0000000000001',
+        user_id: USER_ID,
+        token: 'hashed-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+      } as any);
+      mockPrisma.auditLog.create.mockResolvedValue({} as any);
+
+      await expect(authService.requestPasswordReset('test@example.com')).resolves.not.toThrow();
+
+      expect(mockPrisma.passwordReset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            user_id: USER_ID,
+            token: expect.any(String),
+            expires_at: expect.any(Date),
+          }),
+        }),
+      );
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            user_id: USER_ID,
+            action: 'REQUEST',
+            resource_type: 'password_reset',
+          }),
+        }),
+      );
     });
   });
 

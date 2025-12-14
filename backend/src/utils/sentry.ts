@@ -25,8 +25,6 @@ export function initializeSentry(app: Express): void {
         new Tracing.Integrations.Express({ app }),
         // Enable PostgreSQL tracing
         new Tracing.Integrations.Postgres(),
-        // Enable Redis tracing
-        new Tracing.Integrations.Redis(),
       ],
       // Performance monitoring
       tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
@@ -38,7 +36,7 @@ export function initializeSentry(app: Express): void {
         'ENOTFOUND',
         'ETIMEDOUT',
       ],
-      beforeSend(event, hint) {
+      beforeSend(event, _hint) {
         // Don't send errors in development
         if (process.env.NODE_ENV === 'development') {
           return null;
@@ -71,9 +69,9 @@ export function getSentryTracingHandler() {
   return Sentry.Handlers.tracingHandler();
 }
 
-export function getSentryErrorHandler() {
+export function getSentryErrorHandler(): ReturnType<typeof Sentry.Handlers.errorHandler> {
   return Sentry.Handlers.errorHandler({
-    shouldHandleError(error) {
+    shouldHandleError(_error) {
       // Capture 4xx and 5xx errors
       return true;
     },

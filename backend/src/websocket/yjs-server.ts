@@ -71,6 +71,8 @@ class YjsPersistence {
             await prisma.sessionFile.create({
               data: {
                 session_id: sessionId,
+                name: filePath.split('/').pop() || filePath,
+                type: 'file',
                 path: filePath,
                 content: textContent,
                 yjs_state: base64State,
@@ -126,6 +128,8 @@ class YjsPersistence {
         await prisma.sessionFile.create({
           data: {
             session_id: sessionId,
+            name: filePath.split('/').pop() || filePath,
+            type: 'file',
             path: filePath,
             content: textContent,
             yjs_state: base64State,

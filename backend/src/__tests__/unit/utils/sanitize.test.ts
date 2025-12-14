@@ -106,6 +106,18 @@ describe('Sanitization Functions', () => {
       it('should throw for lowercase drive letters', () => {
         expect(() => sanitizeFilePath('d:\\Users\\test')).toThrow(ValidationError);
       });
+
+      it('should throw for drive letter with forward slash', () => {
+        // C:/ is detected as absolute path first
+        expect(() => sanitizeFilePath('C:/Users/test')).toThrow(ValidationError);
+        expect(() => sanitizeFilePath('C:/Users/test')).toThrow('Absolute paths are not allowed');
+      });
+
+      it('should throw for plain drive letter', () => {
+        // C: alone triggers drive letter check
+        expect(() => sanitizeFilePath('C:')).toThrow(ValidationError);
+        expect(() => sanitizeFilePath('C:')).toThrow('Drive letters are not allowed');
+      });
     });
 
     describe('null byte prevention', () => {
@@ -151,6 +163,17 @@ describe('Sanitization Functions', () => {
 
       it('should throw for path that becomes empty after cleaning', () => {
         expect(() => sanitizeFilePath('/')).toThrow(ValidationError);
+      });
+
+      it('should throw for multiple slashes that are absolute', () => {
+        // Multiple slashes starting with / are detected as absolute path first
+        expect(() => sanitizeFilePath('///')).toThrow(ValidationError);
+        expect(() => sanitizeFilePath('///')).toThrow('Absolute paths are not allowed');
+      });
+
+
+      it('should throw for backslash only path', () => {
+        expect(() => sanitizeFilePath('\\')).toThrow(ValidationError);
       });
     });
   });
